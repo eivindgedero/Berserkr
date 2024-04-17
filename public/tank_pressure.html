@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Injector Pressure - UIS Aerospace</title>
+    <link rel="stylesheet" href="styles.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom"></script>
+
+    <link rel="icon" type="image/x-icon" href="/images/favicon.ico">
+</head>
+
+<body>
+    <header class="site-header">
+        <!-- Navbar -->
+        <nav class="topnav">
+            <div class="logo-container"><a href="index.html" id="logo-container"><img src="images/uisaerospacelogo.png"
+                        alt="UIS Aerospace Logo"></a></div>
+            <a href="injector_pressure.html">Injector Pressure</a>
+            <a href="injector_temperature.html">Injector Temperature</a>
+            <a href="tank_pressure.html" class="active">Tank Pressure</a>
+            <a href="tank_temperature.html">Tank Temperature</a>
+            <a href="engine_pressure.html">Engine Pressure</a>
+            <a href="total_thrust.html">Total Thrust</a>
+        </nav>
+    </header>
+    <nav class="menu">
+        <ol id="navbar-data" class="nav-link"></ol>
+    </nav>
+    <div class="graph2 graph-container-margin">
+        <div class="graph-container">
+            <canvas id="tank_pressure" id="graph_page"></canvas>
+            <div class="controls">
+                <button id="resetZoomBtn">Reset zoom</button>
+                <span id="zoomInfoText">Hold 'Ctrl' and drag to select an area.</span>
+            </div>
+        </div>
+    </div>
+    <p></p>
+    <script>
+        let charts = {};
+
+        async function loadRunOptions() {
+            const list = document.getElementById("navbar-data");
+            list.innerHTML = '';
+
+            const headerItem = document.createElement("li");
+            headerItem.textContent = "Select dataset:";
+            headerItem.classList.add("nav-header");
+            list.appendChild(headerItem);
+
+            try {
+                const response = await fetch("/runs");
+                const runs = await response.json();
+                runs.forEach(run => {
+                    const listItem = document.createElement("li");
+                    const option = document.createElement("span");
+                    option.textContent = run;
+                    option.classList.add("nav-link");
+                    option.addEventListener('click', async () => {
+                        await fetchAndRenderGraph(`${run}.csv`);
+                        // Remove active class from all items
+                        list.querySelectorAll('.nav-link').forEach(item => {
+                            item.classList.remove('active');
+                        });
+                        // Add active class to clicked item
+                        option.classList.add('active');
+                    });
+                    listItem.appendChild(option);
+                    list.appendChild(listItem);
+                });
+            } catch (error) {
+                console.error(`Failed to load runs:`, error);
+            }
+        }
+
+        function destroyAllCharts() {
+            Object.keys(charts).forEach((chartId) => {
+                if (charts[chartId]) {
+                    charts[chartId].destroy();
+                    charts[chartId] = null;
+                }
+            });
+        }
+
+        async function fetchAndRenderGraph(run) {
+            try {
+                const response = await fetch(`/run/${run}`);
+                const jsonData = await response.json();
+                updateGraphs(jsonData);
+            } catch (error) {
+                console.error(`Failed to fetch data for run: ${run}`, error);
+            }
+        }
+        function updateGraphs(jsonData) {
+            renderGraph('tank_pressure', jsonData, {
+                N2O_tank_pressure: {
+                    timeKey: 'N2O_tank_pressure_time',
+                    label: 'N2O Tank Pressure',
+                    borderColor: 'rgb(75, 192, 192)',
+                }
+            }, 'Pressure [bar]');
+        }
+
+        function renderGraph(canvasId, jsonData, sensors, yAxisLabel) {
+            const datasets = Object.keys(sensors).map(sensorKey => {
+                const sensorInfo = sensors[sensorKey];
+                const data = jsonData.map(item => ({
+                    x: item[sensorInfo.timeKey] ? new Date('1970-01-01T' + item[sensorInfo.timeKey] + 'Z') : null,
+                    y: item[sensorKey]
+                })).filter(item => item.x !== null);  // Filter out any data points without a valid timestamp
+
+                return {
+                    label: sensorInfo.label,
+                    data: data,
+                    borderColor: sensorInfo.borderColor,
+                    fill: false
+                };
+            });
+
+            if (charts[canvasId]) {
+                charts[canvasId].destroy();
+            }
+
+            const ctx = document.getElementById(canvasId).getContext('2d');
+            charts[canvasId] = new Chart(ctx, {
+                type: 'line',
+                data: { datasets: datasets },
+                options: {
+                    scales: {
+                        x: {
+                            type: 'time',
+                            time: {
+                                parser: 'HH:mm:ss.SSS',
+                                unit: 'second',
+                                displayFormats: {
+                                    second: 'HH:mm:ss',
+                                    tooltip: 'HH:mm:ss.SSS'
+                                },
+                                tooltipFormat: 'HH:mm:ss.SSS'
+                            },
+                            title: {
+                                display: true,
+                                text: 'Time [s]'
+                            }
+                        },
+                        y: {
+                            beginAtZero: false,
+                            title: {
+                                display: true,
+                                text: yAxisLabel
+                            }
+                        }
+                    },
+                    plugins: {
+                        zoom: {
+                            zoom: {
+                                wheel: {
+                                    enabled: true,
+                                },
+                                pinch: {
+                                    enabled: true,
+                                },
+                                drag: {
+                                    enabled: true,
+                                    backgroundColor: 'rgba(85, 38, 78, 0.2)',
+                                    borderColor: 'rgba(225,225,225)',
+                                    modifierKey: 'ctrl',
+                                },
+                                mode: 'xy',
+                            },
+                        }
+                    }
+                }
+            });
+        }
+
+        // Add event listener to the reset zoom button
+        const resetZoomBtn = document.getElementById('resetZoomBtn');
+        resetZoomBtn.addEventListener('click', function () {
+            charts['tank_pressure'].resetZoom();
+        });
+
+        loadRunOptions();
+    </script>
+</body>
+
+</html>
