@@ -46,7 +46,13 @@ function destroyAllCharts() {
 async function fetchAndRenderGraph(run) {
     try {
         const response = await fetch(`/run/${run}`);
-        const jsonData = await response.json();
+        let jsonData = await response.json();
+
+        // Filter out entries where any key time is '00:00:00.000'
+        jsonData = jsonData.filter(item => {
+            return !['N2O_injector_pressure_time', 'ethanol_injector_pressure_time', 'N2O_injector_temperature_time', 'ethanol_injector_temperature_time', 'N2O_tank_temperature_top_time', 'N2O_tank_temperature_bot_time', 'N2O_tank_pressure_time', 'engine_chamber_pressure_time', 'thrust2_time'].some(key => item[key] === '00:00:00.000');
+        });
+
         updateGraphs(jsonData);
     } catch (error) {
         console.error(`Failed to fetch data for run: ${run}`, error);
@@ -98,6 +104,11 @@ function updateGraphs(jsonData) {
             timeKey: 'N2O_tank_pressure_time',
             label: 'N2O Tank Pressure',
             borderColor: 'rgb(75, 192, 192)',
+        },
+        ethanol_tank_pressure: {
+            timeKey: 'ethanol_tank_pressure_time',
+            label: 'Ethanol Tank Pressure',
+            borderColor: 'rgb(255, 99, 132)',
         }
     }, 'Pressure [bar]');
 
@@ -109,9 +120,21 @@ function updateGraphs(jsonData) {
         }
     }, 'Pressure [bar]');
 
+    // Determine the minimum timestamp from the thrust2_time key to use as the zero time
+    let minThrustTimestamp = null;
+    jsonData.forEach(item => {
+        if (item['thrust2_time']) {
+            const currentTimestamp = new Date('1970-01-01T' + item['thrust2_time'] + 'Z');
+            if (minThrustTimestamp === null || currentTimestamp < minThrustTimestamp) {
+                minThrustTimestamp = currentTimestamp;
+            }
+        }
+    });
+
     const totalThrustData = jsonData.map(item => {
+        const itemDate = item['thrust2_time'] ? new Date('1970-01-01T' + item['thrust2_time'] + 'Z') : null;
         return {
-            x: item['thrust2_time'] ? new Date('1970-01-01T' + item['thrust2_time'] + 'Z') : null,
+            x: itemDate ? (itemDate - minThrustTimestamp) / 1000 : null,  // Convert the time to seconds relative to the min timestamp
             y: (parseFloat(item.thrust1) || 0) +
                 (parseFloat(item.thrust2) || 0) +
                 (parseFloat(item.thrust3) || 0) +
@@ -119,24 +142,41 @@ function updateGraphs(jsonData) {
                 (parseFloat(item.thrust5) || 0) +
                 (parseFloat(item.thrust6) || 0)
         };
-    }).filter(item => item.x !== null);
+    }).filter(item => item.x !== null);  // Filter out entries without a valid time
 
+    // Now call the function to render the graph with this updated dataset
     renderGraphForTotalThrust('total_thrust', totalThrustData, 'Force [N]');
+
 }
 
 function renderGraph(canvasId, jsonData, sensors, yAxisLabel) {
+    // Find the minimum timestamp to use as the baseline for zero time
+    let minTimestamp = null;
+    Object.values(sensors).forEach(sensor => {
+        jsonData.forEach(item => {
+            if (item[sensor.timeKey] && (minTimestamp === null || new Date('1970-01-01T' + item[sensor.timeKey] + 'Z') < minTimestamp)) {
+                minTimestamp = new Date('1970-01-01T' + item[sensor.timeKey] + 'Z');
+            }
+        });
+    });
+
     const datasets = Object.keys(sensors).map(sensorKey => {
         const sensorInfo = sensors[sensorKey];
-        const data = jsonData.map(item => ({
-            x: item[sensorInfo.timeKey] ? new Date('1970-01-01T' + item[sensorInfo.timeKey] + 'Z') : null,
-            y: item[sensorKey]
-        })).filter(item => item.x !== null);  // Filter out any data points without a valid timestamp
+        const data = jsonData.map(item => {
+            const itemDate = item[sensorInfo.timeKey] ? new Date('1970-01-01T' + item[sensorInfo.timeKey] + 'Z') : null;
+            return {
+                x: itemDate ? (itemDate - minTimestamp) / 1000 : null, // Convert time difference to seconds
+                y: item[sensorKey]
+            };
+        }).filter(item => item.x !== null); // Filter out any data points without a valid timestamp
 
         return {
             label: sensorInfo.label,
             data: data,
             borderColor: sensorInfo.borderColor,
-            fill: false
+            borderWidth: 2,
+            fill: false,
+            pointRadius: 0
         };
     });
 
@@ -151,23 +191,15 @@ function renderGraph(canvasId, jsonData, sensors, yAxisLabel) {
         options: {
             scales: {
                 x: {
-                    type: 'time',
-                    time: {
-                        parser: 'HH:mm:ss.SSS',
-                        unit: 'second',
-                        displayFormats: {
-                            second: 'HH:mm:ss',
-                            tooltip: 'HH:mm:ss.SSS'
-                        },
-                        tooltipFormat: 'HH:mm:ss.SSS'
-                    },
+                    type: 'linear', // Use a linear scale for the x-axis
+                    position: 'bottom',
                     title: {
                         display: true,
                         text: 'Time [s]'
-                    }
+                    },
                 },
                 y: {
-                    beginAtZero: false,
+                    beginAtZero: true,
                     title: {
                         display: true,
                         text: yAxisLabel
@@ -197,32 +229,27 @@ function renderGraphForTotalThrust(canvasId, dataset, yAxisLabel) {
                 label: 'Total Engine Thrust',
                 data: dataset,
                 borderColor: 'rgb(75, 192, 192)',
-                fill: false
+                borderWidth: 2,
+                fill: false,
+                pointRadius: 0,
             }]
         },
         options: {
             scales: {
                 x: {
-                    type: 'time',
-                    time: {
-                        parser: 'HH:mm:ss.SSS',
-                        unit: 'second',
-                        displayFormats: {
-                            second: 'HH:mm:ss',
-                            tooltipFormat: 'HH:mm:ss.SSS'
-                        }
-                    },
+                    type: 'linear',
+                    position: 'bottom',
                     title: {
                         display: true,
                         text: 'Time [s]'
-                    }
+                    },
                 },
                 y: {
-                    beginAtZero: false,
+                    beginAtZero: true,
                     title: {
                         display: true,
                         text: yAxisLabel
-                    }
+                    },
                 }
             },
             plugins: {

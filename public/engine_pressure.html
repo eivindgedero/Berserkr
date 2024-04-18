@@ -3,12 +3,12 @@
 
 <head>
     <meta charset="UTF-8">
-    <title>Injector Pressure - UIS Aerospace</title>
+    <title>Engine Pressure - UIS Aerospace</title>
     <link rel="stylesheet" href="styles.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/hammer.js/2.0.8/hammer.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom"></script>
-
     <link rel="icon" type="image/x-icon" href="/images/favicon.ico">
 </head>
 
@@ -34,6 +34,7 @@
             <canvas id="engine_pressure" id="graph_page"></canvas>
             <div class="controls">
                 <button id="resetZoomBtn">Reset zoom</button>
+                <button id="toggleRadiusBtn">Toggle Point Radius</button>
                 <span id="zoomInfoText">Hold 'Ctrl' and drag to select an area.</span>
             </div>
         </div>
@@ -75,7 +76,21 @@
                 console.error(`Failed to load runs:`, error);
             }
         }
+        document.getElementById('toggleRadiusBtn').addEventListener('click', function () {
+            // Check the current radius of the first point in the first dataset
+            const currentRadius = charts['engine_pressure'].data.datasets[0].pointRadius;
 
+            // Determine the new radius based on the current radius
+            const newRadius = currentRadius === 0 ? 3 : 0;
+
+            // Apply the new radius to all datasets (assuming you might have multiple datasets)
+            charts['engine_pressure'].data.datasets.forEach(dataset => {
+                dataset.pointRadius = newRadius;
+            });
+
+            // Update the chart to reflect the changes
+            charts['engine_pressure'].update();
+        });
         function destroyAllCharts() {
             Object.keys(charts).forEach((chartId) => {
                 if (charts[chartId]) {
@@ -88,7 +103,13 @@
         async function fetchAndRenderGraph(run) {
             try {
                 const response = await fetch(`/run/${run}`);
-                const jsonData = await response.json();
+                let jsonData = await response.json();
+
+                // Filter out entries where any key time is '00:00:00.000'
+                jsonData = jsonData.filter(item => {
+                    return !["engine_chamber_pressure_time"].some(key => item[key] === '00:00:00.000');
+                });
+
                 updateGraphs(jsonData);
             } catch (error) {
                 console.error(`Failed to fetch data for run: ${run}`, error);
@@ -105,17 +126,31 @@
         }
 
         function renderGraph(canvasId, jsonData, sensors, yAxisLabel) {
+            // Find the minimum timestamp to use as the baseline for zero time
+            let minTimestamp = null;
+            Object.values(sensors).forEach(sensor => {
+                jsonData.forEach(item => {
+                    if (item[sensor.timeKey] && (minTimestamp === null || new Date('1970-01-01T' + item[sensor.timeKey] + 'Z') < minTimestamp)) {
+                        minTimestamp = new Date('1970-01-01T' + item[sensor.timeKey] + 'Z');
+                    }
+                });
+            });
+
             const datasets = Object.keys(sensors).map(sensorKey => {
                 const sensorInfo = sensors[sensorKey];
-                const data = jsonData.map(item => ({
-                    x: item[sensorInfo.timeKey] ? new Date('1970-01-01T' + item[sensorInfo.timeKey] + 'Z') : null,
-                    y: item[sensorKey]
-                })).filter(item => item.x !== null);  // Filter out any data points without a valid timestamp
+                const data = jsonData.map(item => {
+                    const itemDate = item[sensorInfo.timeKey] ? new Date('1970-01-01T' + item[sensorInfo.timeKey] + 'Z') : null;
+                    return {
+                        x: itemDate ? (itemDate - minTimestamp) / 1000 : null, // Convert time difference to seconds
+                        y: item[sensorKey]
+                    };
+                }).filter(item => item.x !== null); // Filter out any data points without a valid timestamp
 
                 return {
                     label: sensorInfo.label,
                     data: data,
                     borderColor: sensorInfo.borderColor,
+                    borderWidth: 2,
                     fill: false
                 };
             });
@@ -131,23 +166,15 @@
                 options: {
                     scales: {
                         x: {
-                            type: 'time',
-                            time: {
-                                parser: 'HH:mm:ss.SSS',
-                                unit: 'second',
-                                displayFormats: {
-                                    second: 'HH:mm:ss',
-                                    tooltip: 'HH:mm:ss.SSS'
-                                },
-                                tooltipFormat: 'HH:mm:ss.SSS'
-                            },
+                            type: 'linear', // Use a linear scale for the x-axis
+                            position: 'bottom',
                             title: {
                                 display: true,
                                 text: 'Time [s]'
-                            }
+                            },
                         },
                         y: {
-                            beginAtZero: false,
+                            beginAtZero: true,
                             title: {
                                 display: true,
                                 text: yAxisLabel
@@ -156,6 +183,10 @@
                     },
                     plugins: {
                         zoom: {
+                            pan: {
+                                enabled: true,
+                                mode: 'xy',
+                            },
                             zoom: {
                                 wheel: {
                                     enabled: true,

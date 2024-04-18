@@ -28,8 +28,9 @@ html {
 
 canvas {
     width: 100%;
-    height: auto;
+    height: 350px;
 }
+
 
 body {
     background-color: #fbf9f8;
@@ -165,9 +166,16 @@ body {
     cursor: pointer;
 }
 
+#toggleRadiusBtn{
+    padding: 5px 10px;
+    background-color: #958694;
+    color: #f1e6e4;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+}
+
 #zoomInfoText {
     color: black;
-    /* Matches the aesthetic of the rest of your UI */
     font-size: 0.9em;
-    /* Adjust size as necessary */
 }
