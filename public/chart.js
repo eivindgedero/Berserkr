@@ -48,9 +48,9 @@ async function fetchAndRenderGraph(run) {
         const response = await fetch(`/run/${run}`);
         let jsonData = await response.json();
 
-        // Filter out entries where any key time is '00:00:00.000'
         jsonData = jsonData.filter(item => {
-            return !['N2O_injector_pressure_time', 'ethanol_injector_pressure_time', 'N2O_injector_temperature_time', 'ethanol_injector_temperature_time', 'N2O_tank_temperature_top_time', 'N2O_tank_temperature_bot_time', 'N2O_tank_pressure_time', 'engine_chamber_pressure_time', 'thrust2_time'].some(key => item[key] === '00:00:00.000');
+            return !['N2O_injector_pressure_time', 'ethanol_injector_pressure_time', 'N2O_injector_temperature_time', 'ethanol_injector_temperature_time', 'N2O_tank_temperature_top_time', 'N2O_tank_temperature_bot_time', 'N2O_tank_pressure_time', 'engine_chamber_pressure_time', 'thrust2_time']
+                .some(key => item[key] === '00:00:00.000');
         });
 
         updateGraphs(jsonData);

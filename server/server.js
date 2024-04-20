@@ -25,30 +25,41 @@ app.get("/runs", (req, res) => {
     });
 });
 
-app.get("/run/:filename", (req, res) => {
+app.get("/run/:filename", async (req, res) => {
     let filename = req.params.filename;
+    // Ensure the filename ends with .csv
     if (!filename.endsWith(".csv")) {
         filename += ".csv";
     }
     const filepath = path.join(dataFolder, filename);
 
-    const jsonData = [];
-    fs.createReadStream(filepath)
-        .pipe(parse({
-            columns: true,  // First line of the CSV is interpreted as column names
-            trim: true      // Trim leading and trailing spaces around columns
-        }))
-        .on("data", (row) => {
+    try {
+        // Check if the file exists
+        if (!fs.existsSync(filepath)) {
+            return res.status(404).send("File not found.");
+        }
+
+        const jsonData = [];
+        const parser = fs.createReadStream(filepath).pipe(parse({
+            columns: true,
+            trim: true
+        }));
+
+        parser.on("data", (row) => {
             jsonData.push(row);
-        })
-        .on("end", () => {
+        }).on("end", () => {
             res.json(jsonData);
-        })
-        .on("error", (err) => {
+        }).on("error", (err) => {
             console.error(err);
             res.status(500).send("Error processing the CSV file.");
         });
+
+    } catch (err) {
+        console.error(err);
+        res.status(500).send("Server error.");
+    }
 });
+
 
 app.get("/chart.js", (req, res) => {
     res.sendFile(path.join(__dirname, "../public/chart.js"));
