@@ -19,11 +19,9 @@ async function loadRunOptions() {
             option.classList.add("nav-link");
             option.addEventListener('click', async () => {
                 await fetchAndRenderGraph(`${run}.csv`);
-                // Remove active class from all items
                 list.querySelectorAll('.nav-link').forEach(item => {
                     item.classList.remove('active');
                 });
-                // Add active class to clicked item
                 option.classList.add('active');
             });
             listItem.appendChild(option);
@@ -144,13 +142,11 @@ function updateGraphs(jsonData) {
         };
     }).filter(item => item.x !== null);  // Filter out entries without a valid time
 
-    // Now call the function to render the graph with this updated dataset
     renderGraphForTotalThrust('total_thrust', totalThrustData, 'Force [N]');
 
 }
 
 function renderGraph(canvasId, jsonData, sensors, yAxisLabel) {
-    // Find the minimum timestamp to use as the baseline for zero time
     let minTimestamp = null;
     Object.values(sensors).forEach(sensor => {
         jsonData.forEach(item => {
@@ -191,7 +187,7 @@ function renderGraph(canvasId, jsonData, sensors, yAxisLabel) {
         options: {
             scales: {
                 x: {
-                    type: 'linear', // Use a linear scale for the x-axis
+                    type: 'linear',
                     position: 'bottom',
                     title: {
                         display: true,
