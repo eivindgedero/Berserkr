@@ -75,11 +75,11 @@ body {
 }
 
 #navbar-data .nav-link:hover {
-    background-color: #7c6f7b;
+    background-color: #776a76;
 }
 
 #navbar-data .nav-link.active {
-    background-color: #7c6f7b;
+    background-color: #776a76;
 }
 
 /* Styling the navigation bar */
@@ -112,12 +112,12 @@ body {
 }
 
 .topnav a:hover {
-    background-color: #7c6f7b;
+    background-color: #776a76;
     color: #f1e6e4;
 }
 
 .topnav a.active {
-    background-color: #7c6f7b;
+    background-color: #776a76;
     color: #f1e6e4;
 }
 
@@ -166,7 +166,7 @@ body {
     cursor: pointer;
 }
 
-#toggleRadiusBtn{
+#toggleRadiusBtn {
     padding: 5px 10px;
     background-color: #958694;
     color: #f1e6e4;
