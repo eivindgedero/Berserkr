@@ -14,7 +14,16 @@ async function loadRunOptions() {
         const runs = await response.json();
         runs.forEach(run => {
             const listItem = document.createElement("li");
+            const textContainer = document.createElement("div"); // Flex container
             const option = document.createElement("span");
+            const downloadLink = document.createElement("a");
+            const icon = document.createElement("i");
+
+            textContainer.style.display = 'flex';
+            textContainer.style.justifyContent = 'space-between';
+            textContainer.style.alignItems = 'center';
+
+            // Configuring the span to display and handle graph rendering
             option.textContent = run;
             option.classList.add("nav-link");
             option.addEventListener('click', async () => {
@@ -24,13 +33,29 @@ async function loadRunOptions() {
                 });
                 option.classList.add('active');
             });
-            listItem.appendChild(option);
+
+            // textContainer.style.display = 'flex';
+            // textContainer.style.justifyContent = 'space-between';
+            textContainer.style.alignItems = 'center';
+
+            icon.className = 'material-icons';
+            icon.textContent = 'file_download';
+            icon.style.color = '#f1e6e4';
+            downloadLink.appendChild(icon);
+            downloadLink.href = `/download/${run}.csv`;
+            downloadLink.classList.add("download-link", "download-hover");
+
+            textContainer.appendChild(option);
+            textContainer.appendChild(downloadLink);
+
+            listItem.appendChild(textContainer);
             list.appendChild(listItem);
         });
     } catch (error) {
-        console.error(`Failed to load runs:`, error);
+        console.error("Failed to load runs:", error);
     }
 }
+
 
 function destroyAllCharts() {
     Object.keys(charts).forEach((chartId) => {
@@ -48,7 +73,7 @@ async function fetchAndRenderGraph(run) {
 
         jsonData = jsonData.filter(item => {
             return !['N2O_injector_pressure_time', 'ethanol_injector_pressure_time', 'N2O_injector_temperature_time', 'ethanol_injector_temperature_time', 'N2O_tank_temperature_top_time', 'N2O_tank_temperature_bot_time', 'N2O_tank_pressure_time', 'engine_chamber_pressure_time', 'thrust2_time']
-                .some(key => item[key] === '00:00:00.000');
+                .some(key => item[key] === '00:00:00.00');
         });
 
         updateGraphs(jsonData);
@@ -61,7 +86,7 @@ function updateGraphs(jsonData) {
     renderGraph('injector_pressure', jsonData, {
         N2O_injector_pressure: {
             timeKey: 'N2O_injector_pressure_time',
-            label: 'N2O Injector Pressure',
+            label: 'N₂O Injector Pressure',
             borderColor: 'rgb(75, 192, 192)',
         },
         ethanol_injector_pressure: {
@@ -74,7 +99,7 @@ function updateGraphs(jsonData) {
     renderGraph('injector_temperature', jsonData, {
         N2O_injector_temperature: {
             timeKey: 'N2O_injector_temperature_time',
-            label: 'N2O Injector Temperature',
+            label: 'N₂O Injector Temperature',
             borderColor: 'rgb(75, 192, 192)',
         },
         ethanol_injector_temperature: {
@@ -87,26 +112,36 @@ function updateGraphs(jsonData) {
     renderGraph('tank_temperature', jsonData, {
         N2O_tank_temperature_top: {
             timeKey: 'N2O_tank_temperature_top_time',
-            label: 'N2O Tank Temperature Top',
+            label: 'N₂O Tank Temperature Top',
             borderColor: 'rgb(75, 192, 192)',
         },
         N2O_tank_temperature_bot: {
             timeKey: 'N2O_tank_temperature_bot_time',
-            label: 'N2O Tank Temperature Bottom',
+            label: 'N₂O Tank Temperature Bottom',
             borderColor: 'rgb(255, 99, 132)',
+        },
+        ethanol_tank_temperature: {
+            timeKey: 'ethanol_tank_temperature_time',
+            label: 'Ethanol Tank Temperature',
+            borderColor: '#9966ff',
         }
     }, 'Temperature [°C]');
 
     renderGraph('tank_pressure', jsonData, {
         N2O_tank_pressure: {
             timeKey: 'N2O_tank_pressure_time',
-            label: 'N2O Tank Pressure',
+            label: 'N₂O Tank Pressure',
             borderColor: 'rgb(75, 192, 192)',
         },
         ethanol_tank_pressure: {
             timeKey: 'ethanol_tank_pressure_time',
             label: 'Ethanol Tank Pressure',
             borderColor: 'rgb(255, 99, 132)',
+        },
+        nitrogen_tank_pressure: {
+            timeKey: 'nitrogen_tank_pressure_time',
+            label: 'Nitrogen Tank Pressure',
+            borderColor: '#9966ff',
         }
     }, 'Pressure [bar]');
 
@@ -117,6 +152,19 @@ function updateGraphs(jsonData) {
             borderColor: 'rgb(75, 192, 192)',
         }
     }, 'Pressure [bar]');
+
+    renderGraph('tank_mass', jsonData, {
+        N2O_tank_mass: {
+            timeKey: 'N2O_tank_mass_time',
+            label: 'N₂O Tank Mass',
+            borderColor: 'rgb(75, 192, 192)',
+        },
+        ethanol_tank_mass: {
+            timeKey: 'ethanol_tank_mass_time',
+            label: 'Ethanol Tank Mass',
+            borderColor: 'rgb(255, 99, 132)',
+        }
+    }, 'Mass [kg]');
 
     // Determine the minimum timestamp from the thrust2_time key to use as the zero time
     let minThrustTimestamp = null;
@@ -129,6 +177,7 @@ function updateGraphs(jsonData) {
         }
     });
 
+
     const totalThrustData = jsonData.map(item => {
         const itemDate = item['thrust2_time'] ? new Date('1970-01-01T' + item['thrust2_time'] + 'Z') : null;
         return {
@@ -136,9 +185,7 @@ function updateGraphs(jsonData) {
             y: (parseFloat(item.thrust1) || 0) +
                 (parseFloat(item.thrust2) || 0) +
                 (parseFloat(item.thrust3) || 0) +
-                (parseFloat(item.thrust4) || 0) +
-                (parseFloat(item.thrust5) || 0) +
-                (parseFloat(item.thrust6) || 0)
+                (parseFloat(item.thrust4) || 0)
         };
     }).filter(item => item.x !== null);  // Filter out entries without a valid time
 

@@ -3,10 +3,10 @@
 
 <head>
     <meta charset="UTF-8">
-    <title>Injector Temperature - UIS Aerospace</title>
+    <title>Tank Mass - UIS Aerospace</title>
     <link rel="stylesheet" href="styles.css">
-    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/hammer.js/2.0.8/hammer.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom"></script>
@@ -21,10 +21,10 @@
             <div class="logo-container"><a href="index.html" id="logo-container"><img src="images/uisaerospacelogo.png"
                         alt="UIS Aerospace Logo"></a></div>
             <a href="injector_pressure.html">Injector Pressure</a>
-            <a href="injector_temperature.html" class="active">Injector Temperature</a>
+            <a href="injector_temperature.html">Injector Temperature</a>
             <a href="tank_pressure.html">Tank Pressure</a>
             <a href="tank_temperature.html">Tank Temperature</a>
-            <a href="tank_mass.html">Tank Mass</a>
+            <a href="tank_mass.html" class="active">Tank Mass</a>
             <a href="engine_pressure.html">Engine Pressure</a>
             <a href="total_thrust.html">Total Thrust</a>
         </nav>
@@ -34,7 +34,7 @@
     </nav>
     <div class="graph2 graph-container-margin">
         <div class="graph-container">
-            <canvas id="injector_temperature" id="graph_page"></canvas>
+            <canvas id="tank_mass" id="graph_page"></canvas>
             <div class="controls">
                 <button id="resetZoomBtn">Reset zoom</button>
                 <button id="toggleRadiusBtn">Toggle Point Radius</button>
@@ -103,19 +103,20 @@
         }
         document.getElementById('toggleRadiusBtn').addEventListener('click', function () {
             // Check the current radius of the first point in the first dataset
-            const currentRadius = charts['injector_temperature'].data.datasets[0].pointRadius;
+            const currentRadius = charts['tank_mass'].data.datasets[0].pointRadius;
 
             // Determine the new radius based on the current radius
             const newRadius = currentRadius === 0 ? 3 : 0;
 
             // Apply the new radius to all datasets (assuming you might have multiple datasets)
-            charts['injector_temperature'].data.datasets.forEach(dataset => {
+            charts['tank_mass'].data.datasets.forEach(dataset => {
                 dataset.pointRadius = newRadius;
             });
 
             // Update the chart to reflect the changes
-            charts['injector_temperature'].update();
+            charts['tank_mass'].update();
         });
+
         function destroyAllCharts() {
             Object.keys(charts).forEach((chartId) => {
                 if (charts[chartId]) {
@@ -132,7 +133,7 @@
 
                 // Filter out entries where any key time is '00:00:00.00'
                 jsonData = jsonData.filter(item => {
-                    return !["N2O_injector_temperature_time", "ethanol_injector_temperature_time"].some(key => item[key] === '00:00:00.00');
+                    return !["N2O_tank_mass_time", "ethanol_tank_mass_time"].some(key => item[key] === '00:00:00.00');
                 });
 
                 updateGraphs(jsonData);
@@ -141,18 +142,18 @@
             }
         }
         function updateGraphs(jsonData) {
-            renderGraph('injector_temperature', jsonData, {
-                N2O_injector_temperature: {
-                    timeKey: 'N2O_injector_temperature_time',
-                    label: 'N₂O Injector Temperature',
+            renderGraph('tank_mass', jsonData, {
+                N2O_tank_mass: {
+                    timeKey: 'N2O_tank_mass_time',
+                    label: 'N₂O Tank Mass',
                     borderColor: 'rgb(75, 192, 192)',
                 },
-                ethanol_injector_temperature: {
-                    timeKey: 'ethanol_injector_temperature_time',
-                    label: 'Ethanol Injector Temperature',
+                ethanol_tank_mass: {
+                    timeKey: 'ethanol_tank_mass_time',
+                    label: 'Ethanol Tank Mass',
                     borderColor: 'rgb(255, 99, 132)',
                 }
-            }, 'Temperature [°C]');
+            }, 'Mass [kg]');
         }
 
         function renderGraph(canvasId, jsonData, sensors, yAxisLabel) {
@@ -172,7 +173,7 @@
                     const itemDate = item[sensorInfo.timeKey] ? new Date('1970-01-01T' + item[sensorInfo.timeKey] + 'Z') : null;
                     return {
                         x: itemDate ? (itemDate - minTimestamp) / 1000 : null, // Convert time difference to seconds
-                        y: item[sensorKey]
+                        y: item[sensorKey],
                     };
                 }).filter(item => item.x !== null); // Filter out any data points without a valid timestamp
 
@@ -231,6 +232,7 @@
                                     modifierKey: 'ctrl',
                                 },
                                 mode: 'xy',
+
                             },
                         }
                     }
@@ -248,7 +250,7 @@
         // Add event listener to the reset zoom button
         const resetZoomBtn = document.getElementById('resetZoomBtn');
         resetZoomBtn.addEventListener('click', function () {
-            charts['injector_temperature'].resetZoom();
+            charts['tank_mass'].resetZoom();
         });
 
         loadRunOptions();

@@ -5,6 +5,7 @@
     <meta charset="UTF-8">
     <title>Tank Temperature - UIS Aerospace</title>
     <link rel="stylesheet" href="styles.css">
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/hammer.js/2.0.8/hammer.min.js"></script>
@@ -23,6 +24,7 @@
             <a href="injector_temperature.html">Injector Temperature</a>
             <a href="tank_pressure.html">Tank Pressure</a>
             <a href="tank_temperature.html" class="active">Tank Temperature</a>
+            <a href="tank_mass.html">Tank Mass</a>
             <a href="engine_pressure.html">Engine Pressure</a>
             <a href="total_thrust.html">Total Thrust</a>
         </nav>
@@ -58,23 +60,45 @@
                 const runs = await response.json();
                 runs.forEach(run => {
                     const listItem = document.createElement("li");
+                    const textContainer = document.createElement("div"); // Flex container
                     const option = document.createElement("span");
+                    const downloadLink = document.createElement("a");
+                    const icon = document.createElement("i");
+
+                    textContainer.style.display = 'flex';
+                    textContainer.style.justifyContent = 'space-between';
+                    textContainer.style.alignItems = 'center';
+
+                    // Configuring the span to display and handle graph rendering
                     option.textContent = run;
                     option.classList.add("nav-link");
                     option.addEventListener('click', async () => {
                         await fetchAndRenderGraph(`${run}.csv`);
-                        // Remove active class from all items
                         list.querySelectorAll('.nav-link').forEach(item => {
                             item.classList.remove('active');
                         });
-                        // Add active class to clicked item
                         option.classList.add('active');
                     });
-                    listItem.appendChild(option);
+
+                    textContainer.style.display = 'flex';
+                    textContainer.style.justifyContent = 'space-between';
+                    textContainer.style.alignItems = 'center';
+
+                    icon.className = 'material-icons';
+                    icon.textContent = 'file_download';
+                    icon.style.color = '#f1e6e4';
+                    downloadLink.appendChild(icon);
+                    downloadLink.href = `/download/${run}.csv`;
+                    downloadLink.classList.add("download-link", "download-hover");
+
+                    textContainer.appendChild(option);
+                    textContainer.appendChild(downloadLink);
+
+                    listItem.appendChild(textContainer);
                     list.appendChild(listItem);
                 });
             } catch (error) {
-                console.error(`Failed to load runs:`, error);
+                console.error("Failed to load runs:", error);
             }
         }
         document.getElementById('toggleRadiusBtn').addEventListener('click', function () {
@@ -106,9 +130,9 @@
                 const response = await fetch(`/run/${run}`);
                 let jsonData = await response.json();
 
-                // Filter out entries where any key time is '00:00:00.000'
+                // Filter out entries where any key time is '00:00:00.00'
                 jsonData = jsonData.filter(item => {
-                    return !["N2O_tank_temperature_top_time", "N2O_tank_temperature_bot_time"].some(key => item[key] === '00:00:00.000');
+                    return !["N2O_tank_temperature_top_time", "N2O_tank_temperature_bot_time", "ethanol_tank_temperature_time"].some(key => item[key] === '00:00:00.00');
                 });
 
                 updateGraphs(jsonData);
@@ -120,13 +144,18 @@
             renderGraph('tank_temperature', jsonData, {
                 N2O_tank_temperature_top: {
                     timeKey: 'N2O_tank_temperature_top_time',
-                    label: 'N2O Tank Temperature Top',
+                    label: 'N₂O Tank Temperature Top',
                     borderColor: 'rgb(75, 192, 192)',
                 },
                 N2O_tank_temperature_bot: {
                     timeKey: 'N2O_tank_temperature_bot_time',
-                    label: 'N2O Tank Temperature Bottom',
+                    label: 'N₂O Tank Temperature Bottom',
                     borderColor: 'rgb(255, 99, 132)',
+                },
+                ethanol_tank_temperature: {
+                    timeKey: 'ethanol_tank_temperature_time',
+                    label: 'Ethanol Tank Temperature',
+                    borderColor: '#9966ff',
                 }
             }, 'Temperature [°C]');
         }

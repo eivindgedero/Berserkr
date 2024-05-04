@@ -5,6 +5,7 @@
     <meta charset="UTF-8">
     <title>UIS Aerospace</title>
     <link rel="stylesheet" href="styles.css">
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns"></script>
     <link rel="icon" type="image/x-icon" href="/images/favicon.ico">
@@ -19,6 +20,7 @@
             <a href="injector_temperature.html">Injector Temperature</a>
             <a href="tank_pressure.html">Tank Pressure</a>
             <a href="tank_temperature.html">Tank Temperature</a>
+            <a href="tank_mass.html">Tank Mass</a>
             <a href="engine_pressure.html">Engine Pressure</a>
             <a href="total_thrust.html">Total Thrust</a>
         </nav>
@@ -52,9 +54,13 @@
                 <canvas id="total_thrust"></canvas>
             </div>
         </div>
-    </div>
+        <div class="graphs-container">
+            <div class="graph">
+                <canvas id="tank_mass"></canvas>
+            </div>
+        </div>
 
-    <script src="chart.js"></script>
+        <script src="chart.js"></script>
 </body>
 
 </html>
