@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Injector Pressure - UIS Aerospace</title>
+    <link rel="stylesheet" href="styles.css">
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/hammer.js/2.0.8/hammer.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom"></script>
+
+    <link rel="icon" type="image/x-icon" href="/images/favicon.ico">
+</head>
+
+<body>
+    <header class="site-header">
+        <!-- Navbar -->
+        <nav class="topnav">
+            <div class="logo-container"><a href="index.html" id="logo-container"><img src="images/uisaerospacelogo.png"
+                        alt="UIS Aerospace Logo"></a></div>
+            <a href="injector_pressure.html" class="active">Injector Pressure</a>
+            <a href="injector_temperature.html">Injector Temperature</a>
+            <a href="tank_pressure.html">Tank Pressure</a>
+            <a href="tank_temperature.html">Tank Temperature</a>
+            <a href="tank_mass.html">Tank Mass</a>
+            <a href="engine_pressure.html">Engine Pressure</a>
+            <a href="total_thrust.html">Total Thrust</a>
+        </nav>
+    </header>
+    <nav class="menu">
+        <ol id="navbar-data" class="nav-link"></ol>
+    </nav>
+    <div class="graph2 graph-container-margin">
+        <div class="graph-container">
+            <canvas id="engine_angle" id="graph_page"></canvas>
+            <div class="controls">
+                <button id="resetZoomBtn">Reset zoom</button>
+                <button id="toggleRadiusBtn">Toggle Point Radius</button>
+                <span id="zoomInfoText">Hold 'Ctrl' and drag to select an area.</span>
+                <input type="range" id="timeSlider" min="0" max="100" value="0" style="width: 100%;">
+                <span id="timeDisplay" style="width: 20%; display: inline-block; text-align: center;">Time: 0</span>
+            </div>
+        </div>
+    </div>
+    <p></p>
+    <script>
+        let charts = {};
+
+        async function loadRunOptions() {
+            const list = document.getElementById("navbar-data");
+            list.innerHTML = '';
+
+            const headerItem = document.createElement("li");
+            headerItem.textContent = "Select dataset:";
+            headerItem.classList.add("nav-header");
+            list.appendChild(headerItem);
+
+            try {
+                const response = await fetch("/runs");
+                const runs = await response.json();
+                runs.forEach(run => {
+                    const listItem = document.createElement("li");
+                    const textContainer = document.createElement("div"); // Flex container
+                    const option = document.createElement("span");
+                    const downloadLink = document.createElement("a");
+                    const icon = document.createElement("i");
+
+                    textContainer.style.display = 'flex';
+                    textContainer.style.justifyContent = 'space-between';
+                    textContainer.style.alignItems = 'center';
+
+                    // Configuring the span to display and handle graph rendering
+                    option.textContent = run;
+                    option.classList.add("nav-link");
+                    option.addEventListener('click', async () => {
+                        await fetchAndRenderGraph(`${run}.csv`);
+                        list.querySelectorAll('.nav-link').forEach(item => {
+                            item.classList.remove('active');
+                        });
+                        option.classList.add('active');
+                    });
+
+                    textContainer.style.display = 'flex';
+                    textContainer.style.justifyContent = 'space-between';
+                    textContainer.style.alignItems = 'center';
+
+                    icon.className = 'material-icons';
+                    icon.textContent = 'file_download';
+                    icon.style.color = '#f1e6e4';
+                    downloadLink.appendChild(icon);
+                    downloadLink.href = `/download/${run}.csv`;
+                    downloadLink.classList.add("download-link", "download-hover");
+
+                    textContainer.appendChild(option);
+                    textContainer.appendChild(downloadLink);
+
+                    listItem.appendChild(textContainer);
+                    list.appendChild(listItem);
+                });
+            } catch (error) {
+                console.error("Failed to load runs:", error);
+            }
+        }
+        document.getElementById('toggleRadiusBtn').addEventListener('click', function () {
+            // Check the current radius of the first point in the first dataset
+            const currentRadius = charts['engine_angle'].data.datasets[0].pointRadius;
+
+            // Determine the new radius based on the current radius
+            const newRadius = currentRadius === 0 ? 3 : 0;
+
+            // Apply the new radius to all datasets (assuming you might have multiple datasets)
+            charts['engine_angle'].data.datasets.forEach(dataset => {
+                dataset.pointRadius = newRadius;
+            });
+
+            // Update the chart to reflect the changes
+            charts['engine_angle'].update();
+        });
+
+        function destroyAllCharts() {
+            Object.keys(charts).forEach((chartId) => {
+                if (charts[chartId]) {
+                    charts[chartId].destroy();
+                    charts[chartId] = null;
+                }
+            });
+        }
+
+
+        const ctx = document.getElementById('engine_angle').getContext('2d');
+        const rocketDirectionChart = new Chart(ctx, {
+            type: 'scatter',
+            data: {
+                datasets: [{
+                    label: 'Rocket Direction',
+                    data: [{ x: 0, y: 0 }],
+                    pointRadius: 10,
+                    pointBackgroundColor: 'rgba(255, 99, 132, 1)',
+                    borderColor: 'rgba(255, 99, 132, 1)',
+                    borderWidth: 3
+                }]
+            },
+            options: {
+                scales: {
+                    x: {
+                        type: 'linear',
+                        position: 'bottom',
+                        min: -100,
+                        max: 100,
+                        grid: {
+                            drawBorder: true,
+                            color: 'rgba(0, 0, 0, 0.1)',
+                            lineWidth: 1
+                        }
+                    },
+                    y: {
+                        min: -100,
+                        max: 100,
+                        grid: {
+                            drawBorder: true,
+                            color: 'rgba(0, 0, 0, 0.1)',
+                            lineWidth: 1
+                        }
+                    }
+                },
+                plugins: {
+                    legend: {
+                        display: false
+                    }
+                }
+            }
+        });
+
+        // Elements
+        const timeSlider = document.getElementById('timeSlider');
+        const timeDisplay = document.getElementById('timeDisplay');
+
+        // Event listener for the slider change
+        timeSlider.addEventListener('input', function () {
+            const timeIndex = this.value;
+            timeDisplay.textContent = 'Time: ' + timeIndex; // Update display
+            // Update the chart with actual data fetching logic here
+            const x = Math.random() * 200 - 100; // Simulated data
+            const y = Math.random() * 200 - 100; // Simulated data
+            updateRocketDirection(x, y);
+        });
+
+        // Function to update chart data
+        function updateRocketDirection(x, y) {
+            rocketDirectionChart.data.datasets[0].data = [{ x: x, y: y }];
+            rocketDirectionChart.update();
+        }
+        // Add event listener to the reset zoom button
+        const resetZoomBtn = document.getElementById('resetZoomBtn');
+        resetZoomBtn.addEventListener('click', function () {
+            charts['engine_angle'].resetZoom();
+        });
+
+        loadRunOptions();
+    </script>
+</body>
+
+</html>
